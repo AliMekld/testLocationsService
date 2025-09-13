@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/io_client.dart';
+import 'package:http/retry.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() {
@@ -88,13 +90,24 @@ class _LocationScreenState extends State<LocationScreen> {
             keyboardOptions: KeyboardOptions(),
           ),
           initialZoom: zoomLevel,
+
           maxZoom: 16,
           minZoom: zoomLevel,
         ),
         mapController: _mapController,
 
         children: [
-          TileLayer(urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"),
+          TileLayer(
+            tileProvider: NetworkTileProvider(
+              httpClient: RetryClient(
+                IOClient(),
+                retries: 3,
+                when: (response) => response.statusCode >= 500,
+                onRetry: (req, res, retryCount) => debugPrint('Retry #$retryCount for ${req.url}'),
+              ),
+            ),
+            urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          ),
           MarkerLayer(
             rotate: true,
             markers: [
